@@ -275,7 +275,7 @@ export default function SmartCrosswordPage() {
                   />
                 </div>
                 <div className="text-center text-sm mt-1">
-                  {Math.round(progress)}% Completed
+                  {Math.floor(progress)}% Completed
                 </div>
               </div>
             </header>
@@ -304,6 +304,11 @@ export default function SmartCrosswordPage() {
                     if (Object.keys(updated).length === total) {
                       submitGameResult();
                     }
+                  }}
+                  onProgressUpdate={(completedCount, totalCount) => {
+                    // Update progress bar based on completed words
+                    const percentage = (completedCount / totalCount) * 100;
+                    setProgress(percentage);
                   }}
                 />
               </div>

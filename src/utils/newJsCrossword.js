@@ -5,7 +5,7 @@ export default function CustomCrossword({
   gridData,
   across,
   down,
-onScore = () => {},
+  onScore = () => {},
   onWordCompleted = () => {},
 }) {
   const [grid, setGrid] = useState([]);
@@ -15,9 +15,9 @@ onScore = () => {},
   const inputsRef = useRef({});
   const clueCellsRef = useRef({});
   const clueNumbersRef = useRef({});
+  const clueStartsRef = useRef({}); // Track which clues start at each position
   const frozenWordsRef = useRef({});
   const completedAnswersRef = useRef({});
-
 
   useEffect(() => {
     const cloned = gridData.map((row) =>
@@ -32,6 +32,7 @@ onScore = () => {},
     inputsRef.current = {};
     clueCellsRef.current = {};
     clueNumbersRef.current = {};
+    clueStartsRef.current = {};
     frozenWordsRef.current = {};
     completedAnswersRef.current = {};
     setStatus({});
@@ -44,6 +45,7 @@ onScore = () => {},
 
     const newClueCells = {};
     const newNumbers = {};
+    const newStarts = {}; // Track what starts where
 
     // ACROSS
     Object.entries(across).forEach(([num, d]) => {
@@ -59,7 +61,12 @@ onScore = () => {},
 
       newClueCells[`A${num}`] = cells;
       if (cells.length > 0) {
-        newNumbers[`${cells[0].r}-${cells[0].c}`] = num;
+        const startKey = `${cells[0].r}-${cells[0].c}`;
+        newNumbers[startKey] = num;
+        
+        // Track that ACROSS clue starts here
+        if (!newStarts[startKey]) newStarts[startKey] = [];
+        newStarts[startKey].push({ num, direction: "across" });
       }
     });
 
@@ -77,14 +84,22 @@ onScore = () => {},
 
       newClueCells[`D${num}`] = cells;
 
-      if (cells.length > 0 && !newNumbers[`${cells[0].r}-${cells[0].c}`]) {
-        newNumbers[`${cells[0].r}-${cells[0].c}`] = num;
+      if (cells.length > 0) {
+        const startKey = `${cells[0].r}-${cells[0].c}`;
+        if (!newNumbers[startKey]) {
+          newNumbers[startKey] = num;
+        }
+        
+        // Track that DOWN clue starts here
+        if (!newStarts[startKey]) newStarts[startKey] = [];
+        newStarts[startKey].push({ num, direction: "down" });
       }
     });
 
     clueCellsRef.current = newClueCells;
     clueNumbersRef.current = newNumbers;
-  }, [grid]);
+    clueStartsRef.current = newStarts;
+  }, [grid, across, down]);
 
   /** Find clues for a cell **/
   const findCluesForCell = (r, c) => {
@@ -106,17 +121,37 @@ onScore = () => {},
     const belongs = findCluesForCell(r, c);
     if (!belongs.length) return;
 
+    const cellKey = `${r}-${c}`;
+    const startsHere = clueStartsRef.current[cellKey] || [];
+
+    // If there's already an active clue
     if (activeClue) {
       const activeKey =
         activeClue.direction === "across"
           ? `A${activeClue.num}`
           : `D${activeClue.num}`;
 
-      if (clueCellsRef.current[activeKey]?.some((p) => p.r === r && p.c === c)) {
+      // Check if current cell belongs to the active clue
+      const belongsToActive = clueCellsRef.current[activeKey]?.some(
+        (p) => p.r === r && p.c === c
+      );
+
+      // If this cell belongs to active clue, keep it active (don't switch)
+      if (belongsToActive) {
+        // Only toggle if user clicks the SAME cell again
         return;
       }
     }
 
+    // If this cell starts one or more clues, prioritize DOWN
+    if (startsHere.length > 0) {
+      const downStart = startsHere.find((x) => x.direction === "down");
+      const chosen = downStart || startsHere[0];
+      setActiveClue({ num: chosen.num, direction: chosen.direction });
+      return;
+    }
+
+    // Default: prefer ACROSS, but choose first available
     const acrossCandidate = belongs.find((x) => x.direction === "across");
     const chosen = acrossCandidate || belongs[0];
 
@@ -229,9 +264,12 @@ onScore = () => {},
     }
 
     if (e.key === "Backspace") {
-      setTimeout(() => {
-        if (!inputsRef.current[`${r}-${c}`]?.value) movePrev(r, c);
-      }, 0);
+      const currentValue = inputsRef.current[`${r}-${c}`]?.value;
+      
+      if (!currentValue) {
+        e.preventDefault();
+        movePrev(r, c);
+      }
     }
 
     if (activeClue) {
@@ -263,9 +301,9 @@ onScore = () => {},
       (x) => x === "correct"
     ).length;
     if (typeof onScore === "function") {
-  onScore(correctCount);
-}
-  }, [status]);
+      onScore(correctCount);
+    }
+  }, [status, onScore]);
 
   /** DETECT WORD COMPLETION **/
   useEffect(() => {
@@ -295,92 +333,87 @@ onScore = () => {},
 
       onWordCompleted?.(activeClue.num, answer);
     }
-  }, [status]);
+  }, [status, activeClue, across, down, onWordCompleted]);
 
   const clueNumbers = clueNumbersRef.current;
 
   return (
+    <div className="flex flex-col items-center">
+      <div
+        className="
+          grid
+          [--box:34px]
+          [@media(max-width:500px)]:[--box:24px]
+        "
+        style={{
+          gridTemplateColumns: `repeat(${grid[0]?.length || 0}, var(--box))`,
+          gap: "2px",
+        }}
+      >
+        {grid.map((row, r) =>
+          row.map((cell, c) => {
+            if (cell.block)
+              return (
+                <div
+                  key={`${r}-${c}`}
+                  className="w-[34px] h-[34px]
+                             sm:w-[34px] sm:h-[34px]
+                             xs:w-[28px] xs:h-[28px]"
+                />
+              );
 
-<div className="flex flex-col items-center">
-<div
-  className="
-    grid
-    [--box:34px]     /* Default desktop size */
-    [@media(max-width:500px)]:[--box:24px]   /* Mobile < 500px */
-  "
-  style={{
-    gridTemplateColumns: `repeat(${grid[0]?.length || 0}, var(--box))`,
-    gap: "2px",
-  }}
->
+            const st = status[`${r}-${c}`];
+            const key = `${r}-${c}`;
 
-    {grid.map((row, r) =>
-      row.map((cell, c) => {
-        if (cell.block)
-          return (
-            <div
-              key={`${r}-${c}`}
-              className="w-[34px] h-[34px]
-                         sm:w-[34px] sm:h-[34px]
-                         xs:w-[28px] xs:h-[28px]"
-            />
-          );
+            const belongsToFrozen = findCluesForCell(r, c).some(
+              (info) =>
+                frozenWordsRef.current[
+                  `${info.direction === "across" ? "A" : "D"}${info.num}`
+                ]
+            );
 
-        const st = status[`${r}-${c}`];
-        const key = `${r}-${c}`;
+            const bg =
+              belongsToFrozen || st === "correct"
+                ? "#4CAF50"
+                : st === "wrong"
+                ? "#F44336"
+                : "transparent";
 
-        const belongsToFrozen = findCluesForCell(r, c).some(
-          (info) =>
-            frozenWordsRef.current[
-              `${info.direction === "across" ? "A" : "D"}${info.num}`
-            ]
-        );
-
-        const bg =
-          belongsToFrozen || st === "correct"
-            ? "#4CAF50"
-            : st === "wrong"
-            ? "#F44336"
-            : "transparent";
-
-        return (
-          <div
-            key={`${r}-${c}`}
-            className="relative border border border-black
-                       w-[auto] h-[34px]
-                       sm:w-[34px] sm:h-[34px]
-                       xs:w-[28px] xs:h-[28px]"
-            style={{ background: bg }}
-          >
-            {clueNumbers[`${r}-${c}`] && (
+            return (
               <div
-                className="absolute text-[9px] font-bold"
-                style={{ top: 2, left: 4 }}
+                key={`${r}-${c}`}
+                className="relative border border-black
+                           w-[auto] h-[34px]
+                           sm:w-[34px] sm:h-[34px]
+                           xs:w-[28px] xs:h-[28px]"
+                style={{ background: bg }}
               >
-                {clueNumbers[`${r}-${c}`]}
+                {clueNumbers[`${r}-${c}`] && (
+                  <div
+                    className="absolute text-[9px] font-bold"
+                    style={{ top: 2, left: 4 }}
+                  >
+                    {clueNumbers[`${r}-${c}`]}
+                  </div>
+                )}
+
+                <input
+                  disabled={belongsToFrozen}
+                  ref={(el) => (inputsRef.current[key] = el)}
+                  maxLength={1}
+                  value={cell.user}
+                  onFocus={() => handleFocus(r, c)}
+                  onChange={(e) => handleChange(r, c, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, r, c)}
+                  className="absolute inset-0 w-full h-full text-center font-bold outline-none bg-transparent
+                             text-lg xs:text-base"
+                  style={{ textTransform: "uppercase" }}
+                />
               </div>
-            )}
-
-            <input
-              disabled={belongsToFrozen}
-              ref={(el) => (inputsRef.current[key] = el)}
-              maxLength={1}
-              value={cell.user}
-              onFocus={() => handleFocus(r, c)}
-              onClick={() => handleFocus(r, c)}
-              onChange={(e) => handleChange(r, c, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, r, c)}
-              className="absolute inset-0 w-full h-full text-center font-bold outline-none bg-transparent
-                         text-lg xs:text-base"
-              style={{ textTransform: "uppercase" }}
-            />
-          </div>
-        );
-      })
-    )}
-  </div>
-</div>
-
-
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }
