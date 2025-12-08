@@ -1,17 +1,10 @@
 /* eslint-disable */
 import React, { useContext } from "react";
 import { ThemeContext } from "../contexts/ThemeContext";
+import TopHeader from "../pages/TopHeader";
 
-const S3_BASE =
-  "https://2023-extramileplay-php.s3.ap-south-1.amazonaws.com/UAT/crosswordnew/";
-
-function resolveAsset(urlOrName) {
-  if (!urlOrName) return null;
- 
-  if (/^https?:\/\//i.test(urlOrName)) return urlOrName;
-
-  return `${S3_BASE}${urlOrName}`;
-}
+const DEFAULT_THANK_YOU_GIF =
+  "https://staging-games.extramileplay.com/crossword_new/images/thankyou.gif";
 
 export default function ThankYou() {
   const { theme } = useContext(ThemeContext);
@@ -24,52 +17,73 @@ export default function ThankYou() {
     );
   }
 
-
-  const bgDesk = resolveAsset(theme.background_thank_you);
-  const bgMob = resolveAsset(theme.background_thank_you_mob);
-  const thankYouImg = resolveAsset(theme.thank_you_page);
-  const logoImg = resolveAsset(theme.logo);
-
+  
+  const bgDesk = theme.background;
+  const bgMob = theme.background_mob;
 
   const isMobile =
     typeof window !== "undefined" ? window.innerWidth < 768 : false;
+
   const bgImage = isMobile ? bgMob || bgDesk : bgDesk || bgMob;
+
+  
+  const thankYouImg = DEFAULT_THANK_YOU_GIF;
+
+
+  const finalScore = localStorage.getItem("finalScore") || 0;
+  const totalPoints = localStorage.getItem("totalPoints") || 0;
+
+  const finalTimeRaw = localStorage.getItem("finalTime") || "00:00";
+  const [mm, ss] = finalTimeRaw.split(":").map((v) => parseInt(v, 10) || 0);
+  const finalMinutes = mm + ss / 60;
 
   return (
     <main
-      className="min-h-screen w-screen flex flex-col items-center justify-center bg-cover bg-center bg-no-repeat text-center p-6"
+      className="min-h-screen w-screen flex flex-col items-center justify-start bg-cover bg-center bg-no-repeat text-center p-6 relative"
       style={{
         backgroundImage: bgImage ? `url(${bgImage})` : undefined,
       }}
     >
+
+         <TopHeader forceExternalBack />
+     
+      {/* {theme.logo && (
+        <img
+          src={theme.logo}
+          alt="Logo"
+          className="mt-4 mb-6 object-contain"
+          style={{ maxWidth: 180 }}
+        />
+      )} */}
+
     
-      {logoImg && (
-        <img
-          src={logoImg}
-          alt={theme.themeName || "Logo"}
-          className="mb-4 object-contain"
-          style={{ maxWidth: 220 }}
-        />
-      )}
+      <img
+        src={thankYouImg}
+        alt="Thank You"
+        className="w-full mt-40 max-w-[400px] mb-6 object-contain drop-shadow-xl"
+      />
 
-      {thankYouImg && (
-        <img
-          src={thankYouImg}
-          alt="Thank You"
-          className="w-full max-w-[400px] mb-6 object-contain"
-        />
-      )}
-
+     
       <h1
-        className="text-2xl md:text-4xl font-bold"
+        className="text-2xl md:text-4xl font-bold mb-6 px-4"
         style={{ color: theme.landing_page_title_color || "#000" }}
       >
         {theme.custom_text_thank_you_page || "Thank you for playing!"}
       </h1>
 
+   
+      <p className="text-lg md:text-2xl font-semibold mb-8">
+        You have scored <span className="text-green-700">{finalScore}</span> out
+        of <span className="text-blue-700">{totalPoints}</span> in{" "}
+        <span className="text-red-700">
+          {Number(finalMinutes).toFixed(2)} minutes
+        </span>
+      </p>
+
+     
       <button
         onClick={() => (window.location.href = "/")}
-        className="mt-6 px-6 py-3 rounded-lg font-bold text-lg hover:opacity-90 transition"
+        className="px-8 py-3 rounded-lg font-bold text-lg hover:opacity-90 transition shadow-xl"
         style={{
           backgroundColor: theme.button_color || "#f06c60",
           color: theme.button_Textcolor || "#fff",

@@ -48,14 +48,13 @@ export function layoutToCrossword(wordsJson) {
     nextNum++;
   });
 
-  // Create grid (letters or null)
+
   const table = layout.table || [];
   const grid = table.map((row) =>
     row.map((ch) => (ch === "-" ? null : ch.toUpperCase()))
   );
 
-  // ❗ IMPORTANT FIX: Expected must NOT contain correct letters
-  // Otherwise crossword auto-corrects + overwrites freeze
+  
   const expected = null;
 
   return { across, down, grid, expected };

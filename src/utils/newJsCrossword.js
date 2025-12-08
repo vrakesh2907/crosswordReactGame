@@ -15,7 +15,7 @@ export default function CustomCrossword({
   const inputsRef = useRef({});
   const clueCellsRef = useRef({});
   const clueNumbersRef = useRef({});
-  const clueStartsRef = useRef({}); // Track which clues start at each position
+  const clueStartsRef = useRef({}); 
   const frozenWordsRef = useRef({});
   const completedAnswersRef = useRef({});
 
@@ -39,15 +39,15 @@ export default function CustomCrossword({
     setActiveClue(null);
   }, [gridData]);
 
-  /** BUILD CLUE CELLS **/
+
   useEffect(() => {
     if (!grid || grid.length === 0) return;
 
     const newClueCells = {};
     const newNumbers = {};
-    const newStarts = {}; // Track what starts where
+    const newStarts = {}; 
 
-    // ACROSS
+   
     Object.entries(across).forEach(([num, d]) => {
       const cells = [];
       let r = d.row;
@@ -64,13 +64,13 @@ export default function CustomCrossword({
         const startKey = `${cells[0].r}-${cells[0].c}`;
         newNumbers[startKey] = num;
         
-        // Track that ACROSS clue starts here
+        
         if (!newStarts[startKey]) newStarts[startKey] = [];
         newStarts[startKey].push({ num, direction: "across" });
       }
     });
 
-    // DOWN
+   
     Object.entries(down).forEach(([num, d]) => {
       const cells = [];
       let r = d.row;
@@ -90,7 +90,7 @@ export default function CustomCrossword({
           newNumbers[startKey] = num;
         }
         
-        // Track that DOWN clue starts here
+       
         if (!newStarts[startKey]) newStarts[startKey] = [];
         newStarts[startKey].push({ num, direction: "down" });
       }
@@ -101,7 +101,7 @@ export default function CustomCrossword({
     clueStartsRef.current = newStarts;
   }, [grid, across, down]);
 
-  /** Find clues for a cell **/
+  
   const findCluesForCell = (r, c) => {
     const result = [];
 
@@ -116,7 +116,7 @@ export default function CustomCrossword({
     return result;
   };
 
-  /** Detect new clue selection **/
+  
   const handleFocus = (r, c) => {
     const belongs = findCluesForCell(r, c);
     if (!belongs.length) return;
@@ -124,26 +124,26 @@ export default function CustomCrossword({
     const cellKey = `${r}-${c}`;
     const startsHere = clueStartsRef.current[cellKey] || [];
 
-    // If there's already an active clue
+   
     if (activeClue) {
       const activeKey =
         activeClue.direction === "across"
           ? `A${activeClue.num}`
           : `D${activeClue.num}`;
 
-      // Check if current cell belongs to the active clue
+     
       const belongsToActive = clueCellsRef.current[activeKey]?.some(
         (p) => p.r === r && p.c === c
       );
 
-      // If this cell belongs to active clue, keep it active (don't switch)
+     
       if (belongsToActive) {
-        // Only toggle if user clicks the SAME cell again
+        
         return;
       }
     }
 
-    // If this cell starts one or more clues, prioritize DOWN
+   
     if (startsHere.length > 0) {
       const downStart = startsHere.find((x) => x.direction === "down");
       const chosen = downStart || startsHere[0];
@@ -295,7 +295,7 @@ export default function CustomCrossword({
     }
   };
 
-  /** SCORE **/
+
   useEffect(() => {
     const correctCount = Object.values(status).filter(
       (x) => x === "correct"
@@ -305,7 +305,7 @@ export default function CustomCrossword({
     }
   }, [status, onScore]);
 
-  /** DETECT WORD COMPLETION **/
+
   useEffect(() => {
     if (!activeClue) return;
 

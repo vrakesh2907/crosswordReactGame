@@ -1,40 +1,49 @@
 export function generateSubmitPayload(score, time) {
-  const userId = crypto.randomUUID();
-  return {
-    organizationName: "",
-    subDomain: "",
-    companyLogo: "https://staging-games.extramileplay.com/imp/logo/extramileplay-new.png",
-    logocss: "",
-    userPlayedCount: 0,
+  const sessionId = localStorage.getItem("sessionId");
+  const organizationId = localStorage.getItem("organizationId");
+  const gameId = localStorage.getItem("gameId");
+  const userId = localStorage.getItem("userId");
+  const email = localStorage.getItem("email");
+  const role = (localStorage.getItem("role") || "PUBLIC_USER").toUpperCase();
+  const token = localStorage.getItem("token");
 
-   // userId: "4ea9239e-37dc-4267-b7f4-0754794f5b85",
-   userId: userId,
-    organizationId: "9991e14e-2305-4086-8d75-9cd2e35913bc",
+  let firstName = localStorage.getItem("firstName");
+  let lastName = localStorage.getItem("lastName");
 
-   
-    firstName: "Guest",
-    lastName: "User",
+  if (!firstName || firstName === "null" || firstName === "undefined") {
+    firstName = " ";
+  }
+  if (!lastName || lastName === "null" || lastName === "undefined") {
+    lastName = " ";
+  }
 
-    sessionId: "4b13c138-8ccf-4331-8430-3b2d5c746a24",
-    businessUnit: "",
+  if (!sessionId || !organizationId || !gameId || !userId) {
+    console.error("❌ Missing core submission fields:", {
+      sessionId,
+      organizationId,
+      gameId,
+      userId,
+    });
+    return null;
+  }
 
-    email: "test@gmail.com",
-    roles: "GUEST_USER",
-
-    token: "4ea9239e-37dc-4267-b7f4-0754794f5b85",
-
-    v_gameId: "16999d08-0435-4690-a806-a8baef65abfc",
-    employeeId: "",
-    gameId: "16999d08-0435-4690-a806-a8baef65abfc",
-
-    additionalFields: {
-      email: "test@gmail.com",
-    },
-
-    gameRedirect:
-      "https://staging.extramileplay.com/game-detail/16999d08-0435-4690-a806-a8baef65abfc",
-
-    timer: time || "00:00",
-    points: score || 0,
+  const payload = {
+    userId,
+    gameId,
+    roles: role,
+    email,
+    organizationId,
+    sessionId,
+    firstName,
+    lastName,
+    timer: time ?? "00:00",
+    points: score ?? 0,
   };
+
+ 
+  if (role !== "GUEST_USER" && token) {
+    payload.token = token;
+  }
+
+  return payload;
 }

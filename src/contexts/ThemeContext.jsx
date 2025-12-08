@@ -1,14 +1,12 @@
-import React, { createContext, useEffect, useState } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
 
 export const ThemeContext = createContext({
   theme: null,
   session: null,
   loading: true,
   error: null,
+  refreshTheme: () => {},
 });
-
-// const sessionId = process.env.REACT_APP_SESSION_ID;
-// const organizationId = process.env.REACT_APP_ORG_ID;
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(null);
@@ -16,35 +14,66 @@ export function ThemeProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  async function loadTheme() {
+
+  const loadTheme = useCallback(async () => {
+    const sessionId = localStorage.getItem("sessionId");
+    const organizationId = localStorage.getItem("organizationId");
+    const role = localStorage.getItem("role") || "PUBLIC_USER";
+
+    if (!sessionId || !organizationId) {
+      setTheme(null);
+      setSession(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const url = 
-        `https://staging-games.extramileplay.com/crossword_new/admin/API/getThemeData.php?sessionId=4b13c138-8ccf-4331-8430-3b2d5c746a24&organizationId=9991e14e-2305-4086-8d75-9cd2e35913bc`;
+      const url = `https://staging-games.extramileplay.com/crossword_new/admin/API/getThemeData.php?sessionId=${sessionId}&organizationId=${organizationId}`;
 
       const res = await fetch(url, { cache: "no-store" });
       const data = await res.json();
 
-      setTheme({ ...data });
-      setSession({ ...data });
+      if (!data) throw new Error("Theme API returned empty");
+
+      setTheme(data.theme || data);
+
+      setSession({
+        sessionId,
+        organizationId,
+        role,
+        themeData: data,
+      });
+
+      setError(null);
     } catch (err) {
       console.error("Theme load error:", err);
       setError("Failed to load theme data");
+      setTheme(null);
+      setSession(null);
     }
 
     setLoading(false);
-  }
-
-  useEffect(() => {
-    loadTheme();
-
-    // OPTIONAL auto-refresh every 30s (remove if not needed)
-   // const interval = setInterval(loadTheme, 30000);
-
-  //  return () => clearInterval(interval);
   }, []);
 
+
+  const refreshTheme = () => {
+    window.dispatchEvent(new Event("refresh-theme"));
+  };
+
+ 
+  useEffect(() => {
+    loadTheme();
+  }, [loadTheme]);
+
+  
+  useEffect(() => {
+    const handler = () => loadTheme();
+    window.addEventListener("refresh-theme", handler);
+    return () => window.removeEventListener("refresh-theme", handler);
+  }, [loadTheme]);
+
   return (
-    <ThemeContext.Provider value={{ theme, session, loading, error }}>
+    <ThemeContext.Provider value={{ theme, session, loading, error, refreshTheme }}>
       {children}
     </ThemeContext.Provider>
   );

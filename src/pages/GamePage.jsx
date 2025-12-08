@@ -5,6 +5,7 @@ import { layoutToCrossword } from "../utils/layoutAdapter";
 import CustomCrossword from "../utils/newJsCrossword";
 import { generateSubmitPayload } from "../hooks/useAutoPayload";
 import useSubmitCrossword from "../hooks/useSubmitCrossword";
+import TopHeader from "../pages/TopHeader";
 
 function parseTimerString(str) {
   if (!str) return 0;
@@ -22,19 +23,15 @@ export default function SmartCrosswordPage() {
   const [score, setScore] = useState(0);
   const [timerSec, setTimerSec] = useState(0);
 
-  // ⭐ NEW: freeze timer when submit or puzzle completes
+  // ⭐ freeze timer when submit or puzzle completes
   const [timerRunning, setTimerRunning] = useState(true);
 
-  const [showPopup, setShowPopup] = useState(false);
   const [completedAnswers, setCompletedAnswers] = useState({});
   const [completedWords, setCompletedWords] = useState({});
   const [progress, setProgress] = useState(0);
-  const [preFilledWords, setPreFilledWords] = useState({});
+
   const { submitScore } = useSubmitCrossword();
 
-  // -------------------------
-  // Load RAW puzzle words
-  // -------------------------
   const rawWordsArray = useMemo(() => {
     if (!theme) return null;
 
@@ -58,9 +55,6 @@ export default function SmartCrosswordPage() {
     return null;
   }, [theme]);
 
-  // -------------------------
-  // Build crossword puzzle
-  // -------------------------
   const puzzle = useMemo(() => {
     if (!rawWordsArray) return null;
     try {
@@ -71,9 +65,6 @@ export default function SmartCrosswordPage() {
     }
   }, [rawWordsArray]);
 
-  // -------------------------
-  // Score calculation
-  // -------------------------
   useEffect(() => {
     if (!theme) return;
     const wordCount = Object.keys(completedWords).length;
@@ -81,9 +72,6 @@ export default function SmartCrosswordPage() {
     setScore(wordCount * pointsPerWord);
   }, [completedWords, theme]);
 
-  // -------------------------
-  // Timer initialization
-  // -------------------------
   useEffect(() => {
     if (!theme) return;
 
@@ -94,30 +82,25 @@ export default function SmartCrosswordPage() {
     }
   }, [theme]);
 
-  // -------------------------
-  // Timer running (FREEZE FIX)
-  // -------------------------
   useEffect(() => {
     if (!theme) return;
-    if (!timerRunning) return; // ⭐ STOP TIMER HERE
+    if (!timerRunning) return;
 
     let tid;
 
     if (theme.use_timeout === true || theme.use_timeout === "true") {
-      // countdown
       tid = setInterval(() => {
         setTimerSec((s) => {
           if (s <= 1) {
             clearInterval(tid);
             setTimerRunning(false);
-            setShowPopup(true);
+
             return 0;
           }
           return s - 1;
         });
       }, 1000);
     } else {
-      // count-up
       tid = setInterval(() => {
         setTimerSec((s) => s + 1);
       }, 1000);
@@ -126,9 +109,6 @@ export default function SmartCrosswordPage() {
     return () => clearInterval(tid);
   }, [theme, timerRunning]);
 
-  // -------------------------
-  // Progress bar calculation
-  // -------------------------
   useEffect(() => {
     if (!puzzle) return;
 
@@ -151,62 +131,95 @@ export default function SmartCrosswordPage() {
     return `${m}:${s}`;
   };
 
-  // -------------------------
-  // DO NOT AUTOFILL CROSSWORD, ONLY SHOW HINT ABOVE CLUE
-  // -------------------------
-
-  useEffect(() => {
-    if (!puzzle) return;
-
-    const answers = {};
-
-   
-    const dashPattern = /[-_]+/;
-
-  
-    for (const [num, data] of Object.entries(puzzle.across)) {
-      if (dashPattern.test(data.clue)) {
-        answers[num] = data.answer;
-      }
-    }
-
-  
-    for (const [num, data] of Object.entries(puzzle.down)) {
-      if (dashPattern.test(data.clue)) {
-        answers[num] = data.answer;
-      }
-    }
-
-    setPreFilledWords(answers);
-  }, [puzzle]);
-
   const totalPossibleScore = puzzle
     ? (Object.keys(puzzle.across).length + Object.keys(puzzle.down).length) *
       Number(theme.points)
     : 0;
 
-
   const submitGameResult = async () => {
-    setTimerRunning(false); // ⭐ FREEZE TIME
+    setTimerRunning(false);
+
+    console.log("CHECK LOCALSTORAGE:", {
+      sessionId: localStorage.getItem("sessionId"),
+      organizationId: localStorage.getItem("organizationId"),
+      gameId: localStorage.getItem("gameId"),
+      userId: localStorage.getItem("userId"),
+      role: localStorage.getItem("role"),
+      email: localStorage.getItem("email"),
+    });
 
     const formattedTime = formatTime(timerSec);
-
     const payload = generateSubmitPayload(score, formattedTime);
 
     console.log("FINAL SUBMISSION PAYLOAD:", payload);
+
+    // ⭐ SAVE score and time to localStorage BEFORE redirect
+    localStorage.setItem("finalScore", score.toString());
+    localStorage.setItem("finalTime", formattedTime);
+    localStorage.setItem("totalPoints", totalPossibleScore.toString());
+
+    console.log("✅ Saved to localStorage:", {
+      finalScore: score,
+      finalTime: formattedTime,
+      totalPoints: totalPossibleScore,
+    });
 
     const result = await submitScore(payload);
 
     console.log("API RESULT:", result);
 
-    setShowPopup(true);
-
-    if (result?.success) {
-      window.location.href = "/thankyou";
-    }
+    // Auto-redirect after submission
+    window.location.href = "/thankyou";
   };
 
- 
+  // ⭐ Show loading state while theme is loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-xl font-semibold text-gray-700">Loading game...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ⭐ Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-xl font-semibold text-red-600">Failed to load theme</p>
+          <p className="text-gray-600 mt-2">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ⭐ Show message if no puzzle data
+  if (!rawWordsArray) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-xl font-semibold text-gray-700">
+            Puzzle data missing in theme
+          </p>
+          <button
+            onClick={() => (window.location.href = "/")}
+            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main
@@ -220,19 +233,10 @@ export default function SmartCrosswordPage() {
         })`,
       }}
     >
-      <div
-        className="w-[90%] max-w-[1400px] flex flex-col"
-       // style={{ marginTop: "-60px" }}
-      >
-        {loading && <div className="p-8">Loading theme...</div>}
-        {error && <div className="p-8 text-red-500">Failed to load theme</div>}
-        {!rawWordsArray && !loading && (
-          <div className="p-8">Puzzle data missing in theme</div>
-        )}
-
+      <TopHeader />
+      <div className="w-[90%] max-w-[1400px] flex flex-col">
         {puzzle && puzzle.grid && (
           <>
-          
             <header className="w-full py-3 px-4">
               <div className="text-center mt-3">
                 <h1
@@ -266,7 +270,6 @@ export default function SmartCrosswordPage() {
                 </div>
               </div>
 
-             
               <div className="mt-4 w-full">
                 <div className="bg-gray-300 h-3 rounded-full">
                   <div
@@ -280,15 +283,12 @@ export default function SmartCrosswordPage() {
               </div>
             </header>
 
-          
             <div className="flex flex-col md:flex-row gap-6 mt-8">
-            
               <div className="flex-1 flex justify-center">
                 <CustomCrossword
                   gridData={puzzle.grid}
                   across={puzzle.across}
                   down={puzzle.down}
-                  preFilledWords={preFilledWords}
                   onScore={() => {}}
                   onWordCompleted={(num, answer) => {
                     const updated = { ...completedWords, [num]: true };
@@ -296,7 +296,6 @@ export default function SmartCrosswordPage() {
                     setCompletedWords(updated);
                     setCompletedAnswers((prev) => ({ ...prev, [num]: answer }));
 
-                   
                     const total =
                       Object.keys(puzzle.across).length +
                       Object.keys(puzzle.down).length;
@@ -306,36 +305,26 @@ export default function SmartCrosswordPage() {
                     }
                   }}
                   onProgressUpdate={(completedCount, totalCount) => {
-                    // Update progress bar based on completed words
                     const percentage = (completedCount / totalCount) * 100;
                     setProgress(percentage);
                   }}
                 />
               </div>
 
-             
               <div className="flex-1 text-left max-w-[500px] mx-auto">
                 <h3 className="text-2xl font-semibold">Across</h3>
                 <ul className="mt-2 space-y-3">
                   {Object.entries(puzzle.across).map(([num, d]) => {
-                    const isBlank = /[-_]+/.test(d.clue);
-
                     return (
                       <li key={num} className="leading-snug flex flex-col">
                         <div className="flex">
                           <strong className="mr-1">{num}.</strong>
                           <span>{d.clue}</span>
 
-                          {!isBlank && completedAnswers[num] && (
-                            <span className="text-green-700 ml-1">
+                          {completedAnswers[num] && (
+                            <span className="text-green-700 ml-2">
                               {completedAnswers[num]}
                             </span>
-                          )}
-
-                          {isBlank && (
-                            <div className="text-blue-600 font-semibold ml-1">
-                              {d.answer}
-                            </div>
                           )}
                         </div>
                       </li>
@@ -346,24 +335,16 @@ export default function SmartCrosswordPage() {
                 <h3 className="text-2xl font-semibold mt-8">Down</h3>
                 <ul className="mt-2 space-y-3">
                   {Object.entries(puzzle.down).map(([num, d]) => {
-                    const isBlank = /[-_]+/.test(d.clue);
-
                     return (
                       <li key={num} className="leading-snug flex flex-col">
                         <div className="flex">
                           <strong className="mr-1">{num}.</strong>
                           <span>{d.clue}</span>
 
-                          {!isBlank && completedAnswers[num] && (
-                            <span className="text-green-700 ml-1">
+                          {completedAnswers[num] && (
+                            <span className="text-green-700 ml-2">
                               {completedAnswers[num]}
                             </span>
-                          )}
-
-                          {isBlank && (
-                            <div className="text-blue-600 font-semibold ml-1">
-                              {d.answer}
-                            </div>
                           )}
                         </div>
                       </li>
@@ -372,75 +353,20 @@ export default function SmartCrosswordPage() {
                 </ul>
 
                 <div className="mt-6 flex gap-3">
-                  {/* ⭐ UI KE ANDAR SUBMIT TOUCH NAHI KARNA */}
                   <button
                     onClick={() => {
                       submitGameResult();
-                      setShowPopup(true);
                     }}
-                    className="px-4 py-2 bg-green-600 text-white rounded"
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                   >
                     Submit
                   </button>
-
-                  {/* <button
-                    onClick={() => window.location.reload()}
-                    className="px-4 py-2 bg-red-500 text-white rounded"
-                  >
-                    Restart
-                  </button> */}
                 </div>
               </div>
             </div>
           </>
         )}
       </div>
-
-    
-      {showPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6">
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              {theme?.end_game_img_popup && (
-                <img
-                  src={theme.end_game_img_popup}
-                  className="w-full md:w-1/2 object-contain rounded"
-                />
-              )}
-
-              <div className="flex-1 text-center md:text-left">
-                <h2 className="text-2xl font-bold mb-2">
-                  {theme?.end_game_text_popup}
-                </h2>
-
-                <p className="mt-2">
-                  <strong>Score:</strong> {score} / {totalPossibleScore}
-                </p>
-
-                <p className="mt-1">
-                  <strong>Time:</strong> {formatTime(timerSec)}
-                </p>
-
-                <div className="mt-6 flex gap-3 justify-center md:justify-start">
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="px-4 py-2 bg-[#f06c60] text-white rounded"
-                  >
-                    Play Again
-                  </button>
-
-                  <button
-                    onClick={() => setShowPopup(false)}
-                    className="px-4 py-2 border rounded"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

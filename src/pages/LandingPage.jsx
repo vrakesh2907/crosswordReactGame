@@ -1,14 +1,15 @@
 import React, { useContext } from "react";
 import { ThemeContext } from "../contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
+import TopHeader from "../pages/TopHeader";
 
 export default function LandingPage() {
   const { theme, loading, error } = useContext(ThemeContext);
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
-  if (!theme) return <div className="p-8 text-center">Theme not available</div>;
+  if (!theme) return <div className="p-8 text-center"></div>;
 
   const bgVars = {
     "--bg-desk": `url(${theme.background_desk})`,
@@ -26,7 +27,10 @@ export default function LandingPage() {
       className="min-h-screen bg-[#fef6ec] flex items-center justify-center py-12 px-4 bg-responsive"
       style={bgVars}
     >
-      <div className="w-full mx-auto flex flex-col items-center gap-6">
+    
+      <TopHeader />
+
+      <div className="w-full mx-auto flex flex-col items-center gap-6 mt-16">
 
         <img
           src={theme.logo}
@@ -43,7 +47,6 @@ export default function LandingPage() {
           />
         )}
 
-      
         <button
           onClick={() => navigate("/rules")}
           style={buttonStyle}

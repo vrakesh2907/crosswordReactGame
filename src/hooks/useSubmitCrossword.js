@@ -2,43 +2,53 @@ import { useState } from "react";
 
 export default function useSubmitCrossword() {
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState(null);
+  const [error, setError] = useState(null);
   const [response, setResponse] = useState(null);
 
-
   const submitScore = async (payload) => {
-  setLoading(true);
-  setError(null);
+    if (!payload) {
+      setError("Invalid payload");
+      return null;
+    }
 
-  try {
-    const form = new FormData();
-    Object.keys(payload).forEach(key => {
-      if (typeof payload[key] === "object") {
-        form.append(key, JSON.stringify(payload[key]));
-      } else {
-        form.append(key, payload[key]);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const form = new FormData();
+
+      for (const [key, value] of Object.entries(payload)) {
+        if (value === undefined || value === null) continue;
+
+        
+        if (key === "additionalFields") {
+          form.append(key, JSON.stringify(value));
+        } else {
+          form.append(key, value);
+        }
       }
-    });
 
-    const res = await fetch(
-      "https://staging-games.extramileplay.com/crossword_new/admin/API/submit.php",
-      {
-        method: "POST",
-        body: form,   // ❗ NO HEADERS
-      }
-    );
+      const res = await fetch(
+        "https://staging-games.extramileplay.com/crossword_new/admin/API/submit.php",
+        {
+          method: "POST",
+          body: form,
+        }
+      );
 
-    const json = await res.json();
-    setResponse(json);
-    return json;
+      const json = await res.json();
+      setResponse(json);
 
-  } catch (err) {
-    console.error("Submit Error:", err);
-    setError("Submission failed");
-  } finally {
-    setLoading(false);
-  }
-};
+      return json;
+    } catch (err) {
+      console.error("Submit error:", err);
+      setError("Submission failed");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return { submitScore, loading, error, response };
 }
+

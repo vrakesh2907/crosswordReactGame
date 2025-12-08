@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { ThemeContext } from "../contexts/ThemeContext";
+import TopHeader from "../pages/TopHeader";
 
 export default function RulesPage() {
   const { theme, loading } = useContext(ThemeContext);
@@ -24,21 +25,21 @@ export default function RulesPage() {
       className="min-h-screen bg-[length:100%_100%] p-6 md:p-12 bg-responsive flex items-center justify-center"
       style={bgVars}
     >
-      <div className="w-full max-w-3xl mx-auto text-center px-4">
+    
+      <TopHeader/>
 
-        {/* Logo */}
+      <div className="w-full max-w-3xl mx-auto text-center px-4 mt-16">
+
+      
         <div className="mx-auto mb-4">
-          <div className="rounded-full mx-auto flex items-center justify-center">
-            <img
-              src={theme.logo}
-              alt={theme.themeName || "Logo"}
-              style={{ width: "200px", height: "200px" }}
-              className="object-contain"
-            />
-          </div>
+          <img
+            src={theme.logo}
+            alt={theme.themeName || "Logo"}
+            style={{ width: "200px", height: "200px" }}
+            className="object-contain mx-auto"
+          />
         </div>
 
-       
         <div
           className="text-center font-bold p-[10px] rounded-[10px] inline-block w-[150px] text-base sm:text-lg md:text-xl"
           style={buttonStyle}
@@ -46,7 +47,6 @@ export default function RulesPage() {
           Rules
         </div>
 
-      
         <div className="mt-6 px-4 md:px-0">
           <ul className="w-full md:w-3/4 mx-auto text-left space-y-6">
             {theme.rules.map((rule, index) => (
@@ -65,7 +65,6 @@ export default function RulesPage() {
           </ul>
         </div>
 
-       
         <div className="mt-10">
           <button
             onClick={() => navigate("/game")}
@@ -78,7 +77,6 @@ export default function RulesPage() {
             Next
           </button>
         </div>
-
       </div>
     </div>
   );
